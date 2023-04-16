@@ -1,0 +1,1 @@
+# obsidian-static-site-generator
