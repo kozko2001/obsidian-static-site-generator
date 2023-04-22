@@ -1,0 +1,5 @@
+```dataview
+List
+from "Notes"
+```
+
