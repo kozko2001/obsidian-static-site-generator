@@ -3,10 +3,22 @@ const { existsSync, rmdirSync, mkdirSync, writeFileSync } = require('fs');
 const os = require('os');
 const fs = require('fs').promises;
 const path = require('path');
+const yargs = require('yargs');
+
+const argv = yargs.option('vault', {
+  default: `${process.cwd()}/vault-test`,
+  type: 'string',
+  description: 'path to the vault'
+}).option('output', {
+  default: `${process.cwd()}/output`,
+  type: 'string',
+  description: 'path to export the html',
+}).help().argv;
 
 const obsidianRootPath = "/tmp/obsidian-root"
-const vault_path = `${process.cwd()}/vault-test`;
-const output_path = `${process.cwd()}/output`;
+
+const vault_path = argv.vault;
+const output_path = argv.output;
 
 const pre_html = `
   <!DOCTYPE html>
@@ -60,11 +72,25 @@ const getInternalLinks = async (window) => {
 
 const getBody = async (window) => {
   return await window.evaluate(async () => {
-    console.log('inside window evaluate');
+    async function wait_until(condition) {
+      const startTime = Date.now();
+      while (Date.now() - startTime <= 5000) {
+        if (await condition()) {
+          return;
+        }
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      throw new Error("Condition not met within 5 seconds.");
+    }
+
+    // From https://github.com/KosmosisDire/obsidian-webpage-export/blob/1fb069a2926783cde50a1a294ab27d23925d03d1/scripts/utils.ts#L465
+    const renderer = app.workspace.activeLeaf.view.previewMode.renderer;
+    renderer.showAll = true;
+    await wait_until(() => document.querySelector(".mod-footer") !== null && renderer.queued == null);
+
     const e = document.querySelector(".mod-root .mod-active .markdown-reading-view");
     const content = e.outerHTML
     const getAllParents = (element) => {
-      console.log('get all parents...');
       if (element.tagName !== "BODY") {
         const a = getAllParents(element.parentElement);
         a.push(element.parentElement)
@@ -108,11 +134,6 @@ async function writeFileToPath(filePath, data) {
 
   // Launch Electron app.
   const electronApp = await electron.launch({ executablePath: `${obsidianRootPath}/obsidian`, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
-
-  // Evaluation expression in the Electron context.
-  const appPath = await electronApp.evaluate(async ({ app }) => {
-    return app.getAppPath();
-  });
 
   const window = await electronApp.firstWindow();
   console.log(await window.title());
@@ -162,9 +183,12 @@ async function writeFileToPath(filePath, data) {
     await window.keyboard.press("Enter")
     await window.waitForTimeout(200);
 
-    console.log('before get body');
+    try {
     const body = await getBody(window);
-    await writeFileToPath(`${output_path}/${link}`, pre_html + body + "</html>");
+      await writeFileToPath(`${output_path}/${link}`, pre_html + body + "</html>");
+    } catch (error) {
+      console.log('we could not write this one');
+    }
   };
   await electronApp.close();
 })();
