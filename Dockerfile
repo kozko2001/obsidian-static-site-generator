@@ -1,4 +1,4 @@
-FROM ubuntu:latest
+FROM node:18-bullseye
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -22,7 +22,6 @@ RUN apt-get update && \
         net-tools \
         tigervnc-standalone-server \
         tigervnc-common \
-        tigervnc-tools \
         git \
         socat \
         libglib2.0-0 libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libgtk-3-0 libgbm1 libasound2 \
@@ -37,34 +36,31 @@ RUN mkdir -p /opt/novnc && \
 	&& rm -rf /root/noVNC/.git \
 	&& rm -rf /root/noVNC/utils/websockify/.git
 
-RUN useradd -m -u 1000 obsidian
+RUN useradd -m obsidian
 
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+COPY scripts/001-download-obsidian.sh /001-download-obsidian.sh
+
+RUN chmod +x /001-download-obsidian.sh /entrypoint.sh
+
+RUN bash -c "/001-download-obsidian.sh" && \
+    chown -R obsidian:obsidian /tmp/obsidian-root
+
+RUN mkdir -p /opt/.vnc && \
+    echo "${VNC_PASSWD}" | vncpasswd -f > /opt/.vnc/passwd && \
+    chmod 600 /opt/.vnc/passwd && \
+    chown obsidian /opt/.vnc/passwd
 
 USER obsidian
 
-RUN mkdir -p /home/obsidian/.vnc && \
-    echo "${VNC_PASSWD}" | vncpasswd -f > /home/obsidian/.vnc/passwd && \
-    chmod 600 /home/obsidian/.vnc/passwd
-ARG OBSIDIAN_VERSION=0.15.9
-
-RUN \
-    echo "**** download obsidian ****" && \
-        curl \
-        https://github.com/obsidianmd/obsidian-releases/releases/download/v$OBSIDIAN_VERSION/Obsidian-$OBSIDIAN_VERSION.AppImage \
-        -L \
-        -o /home/obsidian/obsidian.AppImage
-
-RUN \
-    echo "**** extract obsidian ****" && \
-        chmod +x /home/obsidian/obsidian.AppImage && \
-        cd /home/obsidian && \
-        /home/obsidian/obsidian.AppImage --appimage-extract 
 # Copy the startup script
 
 
-EXPOSE $VNC_PORT $NO_VNC_PORT
+EXPOSE $NO_VNC_PORT
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+
+COPY . /home/obsidian
+RUN cd /home/obsidian; npm ci;
 
 # Start the startup script
 CMD ["/entrypoint.sh"]

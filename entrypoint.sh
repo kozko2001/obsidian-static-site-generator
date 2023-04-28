@@ -1,18 +1,20 @@
 #!/bin/bash
 
-mv /home/obsidian/squashfs-root /tmp/obsidian-root
+mkdir /home/obsidian/.config
 
-# Start vnc
-vncserver :0 -geometry 1024x768 -depth 24 -rfbauth /home/obsidian/.vnc/passwd &
+# Start vnc wm
+vncserver :0 -geometry 1624x1024 -depth 24 -rfbauth /opt/.vnc/passwd &
 
 # Start noVNC
 /opt/novnc/utils/novnc_proxy --vnc localhost:5900 --listen 6080 &
 
+sleep 3
+echo "waiting to start"
+read 
 
-#websockify -D --web=/opt/novnc/ 6081 localhost:5900 &
+# Start obsidian
+cd /home/obsidian
+node script.js
 
-# Start xterm
-DISPLAY=:0 /tmp/obsidian-root/obsidian --no-sandbox
-
-wait
-# Wait for background processes
+# Stop container after obsidian
+pkill bash

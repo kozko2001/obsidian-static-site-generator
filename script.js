@@ -60,9 +60,11 @@ const getInternalLinks = async (window) => {
 
 const getBody = async (window) => {
   return await window.evaluate(async () => {
+    console.log('inside window evaluate');
     const e = document.querySelector(".mod-root .mod-active .markdown-reading-view");
     const content = e.outerHTML
     const getAllParents = (element) => {
+      console.log('get all parents...');
       if (element.tagName !== "BODY") {
         const a = getAllParents(element.parentElement);
         a.push(element.parentElement)
@@ -105,19 +107,15 @@ async function writeFileToPath(filePath, data) {
   setupConfig();
 
   // Launch Electron app.
-  const electronApp = await electron.launch({ executablePath: `${obsidianRootPath}/obsidian` });
+  const electronApp = await electron.launch({ executablePath: `${obsidianRootPath}/obsidian`, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
 
   // Evaluation expression in the Electron context.
   const appPath = await electronApp.evaluate(async ({ app }) => {
     return app.getAppPath();
   });
 
-  // Get the first window that the app opens, wait if necessary.
   const window = await electronApp.firstWindow();
-  // Print the title.
   console.log(await window.title());
-  // Capture a screenshot.
-  // Direct Electron console to Node terminal.
   window.on('console', console.log);//
 
   await window.waitForTimeout(500);
@@ -133,7 +131,6 @@ async function writeFileToPath(filePath, data) {
 
   // Close all tabs -- dirty for now
   await Array.from({ length: 10 }).forEach(async (_, i) => {
-    console.log("closing tab")
     await window.keyboard.press("Control+w")
   });
 
@@ -155,10 +152,9 @@ async function writeFileToPath(filePath, data) {
   const body = await getBody(window);
   await writeFileToPath(`${output_path}/publish.html`, pre_html + body + "</html>");
 
-  links = await getInternalLinks(window);
-  console.log(links)
+  const links = await getInternalLinks(window);
   for (const link of links) {
-    console.log(link);
+    console.log(`Processing ${link}`);
     // Open Publish page
     await window.keyboard.press("Control+o")
     await window.keyboard.type(link);
@@ -166,10 +162,9 @@ async function writeFileToPath(filePath, data) {
     await window.keyboard.press("Enter")
     await window.waitForTimeout(200);
 
+    console.log('before get body');
     const body = await getBody(window);
     await writeFileToPath(`${output_path}/${link}`, pre_html + body + "</html>");
   };
-  await window.waitForTimeout(50000);
-  // Exit app.
   await electronApp.close();
 })();
