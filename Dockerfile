@@ -41,10 +41,12 @@ RUN useradd -m obsidian
 COPY entrypoint.sh /entrypoint.sh
 COPY scripts/001-download-obsidian.sh /001-download-obsidian.sh
 
-RUN chmod +x /001-download-obsidian.sh /entrypoint.sh
 
-RUN bash -c "/001-download-obsidian.sh" && \
-    chown -R obsidian:obsidian /tmp/obsidian-root
+RUN chmod +x /001-download-obsidian.sh /entrypoint.sh && \
+    /001-download-obsidian.sh && \
+    chown -R obsidian:obsidian /tmp/obsidian-root && \
+    mkdir /app /vault /output && \
+    chown obsidian /app /vault /output
 
 RUN mkdir -p /opt/.vnc && \
     echo "${VNC_PASSWD}" | vncpasswd -f > /opt/.vnc/passwd && \
@@ -53,14 +55,9 @@ RUN mkdir -p /opt/.vnc && \
 
 USER obsidian
 
-# Copy the startup script
-
+COPY . /app
+RUN cd /app; PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm ci;
 
 EXPOSE $NO_VNC_PORT
-ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 
-COPY . /home/obsidian
-RUN cd /home/obsidian; npm ci;
-
-# Start the startup script
 CMD ["/entrypoint.sh"]

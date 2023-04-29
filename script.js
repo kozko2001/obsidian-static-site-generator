@@ -52,13 +52,8 @@ const setupConfig = () => {
     rmdirSync(config_folder, { recursive: true });
   }
 
-  if (existsSync(output_path)) {
-    console.log('exists', output_path)
-    rmdirSync(output_path, { recursive: true });
-  }
 
   mkdirSync(config_folder);
-  mkdirSync(output_path);
 
   writeFileSync(`${config_folder}/obsidian.json`, `{"vaults":{"778689a4b2520d50":{"path":"${vault_path}","ts":1681676064550,"open":true}}}`);
 }
