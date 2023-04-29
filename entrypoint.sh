@@ -14,7 +14,7 @@ read
 
 # Start obsidian
 cd /app
-node script.js --vault /vault --output /output
+npm run export -- --vault /vault --output /output
 
 # Stop container after obsidian
 pkill bash
